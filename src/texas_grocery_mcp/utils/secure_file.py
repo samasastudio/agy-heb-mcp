@@ -38,15 +38,16 @@ def write_secure_json(path: Path, data: Any, indent: int = 2) -> None:
     # Ensure parent directory exists with secure permissions
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Set directory permissions to 0o700 (owner only)
-    try:
-        os.chmod(path.parent, SECURE_DIR_MODE)
-    except OSError as e:
-        logger.warning(
-            "Could not set directory permissions",
-            path=str(path.parent),
-            error=str(e),
-        )
+    # Set directory permissions to 0o700 (owner only on non-Windows)
+    if os.name != "nt":
+        try:
+            os.chmod(path.parent, SECURE_DIR_MODE)
+        except OSError as e:
+            logger.warning(
+                "Could not set directory permissions",
+                path=str(path.parent),
+                error=str(e),
+            )
 
     # Write to a temp file first, then rename (atomic on POSIX)
     temp_path = path.with_suffix(".tmp")
@@ -98,6 +99,10 @@ def ensure_secure_permissions(path: Path) -> bool:
     path = Path(path)
 
     if not path.exists():
+        return True
+
+    # Windows NTFS permissions don't support POSIX octal mode bits.
+    if os.name == "nt":
         return True
 
     try:

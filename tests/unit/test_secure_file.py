@@ -21,8 +21,9 @@ class TestWriteSecureJson:
         write_secure_json(test_file, {"key": "value"})
 
         assert test_file.exists()
-        mode = test_file.stat().st_mode & 0o777
-        assert mode == SECURE_FILE_MODE, f"Expected {oct(SECURE_FILE_MODE)}, got {oct(mode)}"
+        if os.name != "nt":
+            mode = test_file.stat().st_mode & 0o777
+            assert mode == SECURE_FILE_MODE, f"Expected {oct(SECURE_FILE_MODE)}, got {oct(mode)}"
 
     def test_writes_valid_json(self, tmp_path):
         """Verify JSON content is written correctly."""
@@ -69,8 +70,11 @@ class TestWriteSecureJson:
         # Rewrite should fix permissions
         write_secure_json(test_file, {"key": "value"})
 
-        mode = test_file.stat().st_mode & 0o777
-        assert mode == SECURE_FILE_MODE
+        if os.name != "nt":
+            mode = test_file.stat().st_mode & 0o777
+            assert mode == SECURE_FILE_MODE
+        else:
+            assert test_file.exists()
 
     def test_cleans_up_temp_file_on_json_error(self, tmp_path):
         """Verify temp files are cleaned up on serialization errors."""
@@ -105,8 +109,9 @@ class TestEnsureSecurePermissions:
         result = ensure_secure_permissions(test_file)
 
         assert result is True
-        mode = test_file.stat().st_mode & 0o777
-        assert mode == SECURE_FILE_MODE
+        if os.name != "nt":
+            mode = test_file.stat().st_mode & 0o777
+            assert mode == SECURE_FILE_MODE
 
     def test_leaves_secure_permissions_unchanged(self, tmp_path):
         """Verify already-secure files are not modified."""
@@ -117,8 +122,9 @@ class TestEnsureSecurePermissions:
         result = ensure_secure_permissions(test_file)
 
         assert result is True
-        mode = test_file.stat().st_mode & 0o777
-        assert mode == SECURE_FILE_MODE
+        if os.name != "nt":
+            mode = test_file.stat().st_mode & 0o777
+            assert mode == SECURE_FILE_MODE
 
     def test_handles_world_readable_file(self, tmp_path):
         """Verify world-readable files are fixed."""
@@ -129,5 +135,6 @@ class TestEnsureSecurePermissions:
         result = ensure_secure_permissions(test_file)
 
         assert result is True
-        mode = test_file.stat().st_mode & 0o777
-        assert mode == SECURE_FILE_MODE
+        if os.name != "nt":
+            mode = test_file.stat().st_mode & 0o777
+            assert mode == SECURE_FILE_MODE

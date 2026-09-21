@@ -11,6 +11,7 @@ After install, run: playwright install chromium
 import asyncio
 import glob
 import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Literal, TypedDict
@@ -193,7 +194,8 @@ async def _take_login_screenshot(page: Any, action: str) -> str | None:
         Path to screenshot file, or None if failed
     """
     timestamp = int(time.time())
-    path = f"/tmp/heb-login-{action}-{timestamp}.png"
+    temp_dir = Path(tempfile.gettempdir())
+    path = str(temp_dir / f"heb-login-{action}-{timestamp}.png")
     try:
         await page.screenshot(path=path, full_page=True)
         logger.info("Screenshot saved", path=path, action=action)
@@ -213,7 +215,8 @@ def _cleanup_old_screenshots(max_age_seconds: int = 3600) -> int:
         Number of files deleted
     """
     deleted = 0
-    pattern = "/tmp/heb-login-*.png"
+    temp_dir = Path(tempfile.gettempdir())
+    pattern = str(temp_dir / "heb-login-*.png")
     now = time.time()
 
     for filepath in glob.glob(pattern):
