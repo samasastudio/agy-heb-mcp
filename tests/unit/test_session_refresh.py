@@ -930,3 +930,83 @@ class TestSecurityChallengeDetection:
 
         assert len(large_page) > 5000  # Verify it's actually large
         assert _detect_security_challenge_html(large_page) is False
+
+
+class TestScreenshotUtilities:
+    """Tests for screenshot capture and cleanup utilities."""
+
+    @pytest.mark.asyncio
+    async def test_take_login_screenshot_success(self, monkeypatch, tmp_path):
+        """Verify screenshot is taken and saved to path in temp_dir."""
+        from unittest.mock import AsyncMock
+
+        from texas_grocery_mcp.auth.browser_refresh import _take_login_screenshot
+
+        monkeypatch.setattr(
+            "texas_grocery_mcp.auth.browser_refresh.get_temp_dir",
+            lambda: tmp_path,
+        )
+
+        mock_page = AsyncMock()
+        mock_page.screenshot = AsyncMock()
+
+        path = await _take_login_screenshot(mock_page, "captcha")
+
+        assert path is not None
+        assert str(tmp_path) in path
+        assert "heb-login-captcha-" in path
+        assert path.endswith(".png")
+        mock_page.screenshot.assert_awaited_once_with(path=path, full_page=True)
+
+    @pytest.mark.asyncio
+    async def test_take_login_screenshot_failure(self, monkeypatch, tmp_path):
+        """Verify None is returned when page.screenshot raises an exception."""
+        from unittest.mock import AsyncMock
+
+        from texas_grocery_mcp.auth.browser_refresh import _take_login_screenshot
+
+        monkeypatch.setattr(
+            "texas_grocery_mcp.auth.browser_refresh.get_temp_dir",
+            lambda: tmp_path,
+        )
+
+        mock_page = AsyncMock()
+        mock_page.screenshot = AsyncMock(side_effect=RuntimeError("Screenshot failed"))
+
+        path = await _take_login_screenshot(mock_page, "2fa")
+        assert path is None
+
+    def test_cleanup_old_screenshots(self, monkeypatch, tmp_path):
+        """Verify old matching screenshots are removed while recent and non-matching files stay."""
+        import os
+        import time
+
+        from texas_grocery_mcp.auth.browser_refresh import _cleanup_old_screenshots
+
+        monkeypatch.setattr(
+            "texas_grocery_mcp.auth.browser_refresh.get_temp_dir",
+            lambda: tmp_path,
+        )
+
+        now = time.time()
+        # Old screenshot (> 3600 seconds old)
+        old_file = tmp_path / "heb-login-captcha-12345.png"
+        old_file.write_bytes(b"old")
+        os.utime(old_file, (now - 5000, now - 5000))
+
+        # Recent screenshot (< 3600 seconds old)
+        recent_file = tmp_path / "heb-login-2fa-67890.png"
+        recent_file.write_bytes(b"recent")
+        os.utime(recent_file, (now - 100, now - 100))
+
+        # Non-matching file
+        other_file = tmp_path / "other-file.png"
+        other_file.write_bytes(b"other")
+        os.utime(other_file, (now - 5000, now - 5000))
+
+        deleted = _cleanup_old_screenshots(max_age_seconds=3600)
+
+        assert deleted == 1
+        assert not old_file.exists()
+        assert recent_file.exists()
+        assert other_file.exists()

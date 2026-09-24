@@ -9,13 +9,13 @@ After install, run: playwright install chromium
 """
 
 import asyncio
-import glob
-import os
 import time
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 import structlog
+
+from texas_grocery_mcp.utils.secure_file import get_temp_dir
 
 logger = structlog.get_logger()
 
@@ -193,7 +193,8 @@ async def _take_login_screenshot(page: Any, action: str) -> str | None:
         Path to screenshot file, or None if failed
     """
     timestamp = int(time.time())
-    path = f"/tmp/heb-login-{action}-{timestamp}.png"
+    temp_dir = get_temp_dir()
+    path = str(temp_dir / f"heb-login-{action}-{timestamp}.png")
     try:
         await page.screenshot(path=path, full_page=True)
         logger.info("Screenshot saved", path=path, action=action)
@@ -213,18 +214,18 @@ def _cleanup_old_screenshots(max_age_seconds: int = 3600) -> int:
         Number of files deleted
     """
     deleted = 0
-    pattern = "/tmp/heb-login-*.png"
+    temp_dir = get_temp_dir()
     now = time.time()
 
-    for filepath in glob.glob(pattern):
+    for file_path in temp_dir.glob("heb-login-*.png"):
         try:
-            file_age = now - os.path.getmtime(filepath)
+            file_age = now - file_path.stat().st_mtime
             if file_age > max_age_seconds:
-                os.remove(filepath)
+                file_path.unlink()
                 deleted += 1
-                logger.debug("Deleted old screenshot", path=filepath)
+                logger.debug("Deleted old screenshot", path=str(file_path))
         except OSError as e:
-            logger.debug("Could not delete screenshot", path=filepath, error=str(e))
+            logger.debug("Could not delete screenshot", path=str(file_path), error=str(e))
 
     return deleted
 

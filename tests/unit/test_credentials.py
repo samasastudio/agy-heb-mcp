@@ -95,12 +95,12 @@ class TestCredentialStore:
         creds_path = temp_auth_dir / ".credentials"
         key_path = temp_auth_dir / ".credentials.key"
 
-        # Check permissions (owner read/write only)
-        creds_mode = stat.S_IMODE(os.stat(creds_path).st_mode)
-        key_mode = stat.S_IMODE(os.stat(key_path).st_mode)
-
-        assert creds_mode == 0o600
-        assert key_mode == 0o600
+        # Check permissions (owner read/write only on POSIX)
+        assert creds_path.exists()
+        assert key_path.exists()
+        if os.name != "nt":
+            assert stat.S_IMODE(os.stat(creds_path).st_mode) == 0o600
+            assert stat.S_IMODE(os.stat(key_path).st_mode) == 0o600
 
     def test_encrypted_file_not_plaintext(self, temp_auth_dir, mock_keyring_unavailable):
         """Encrypted credentials file should not contain plaintext password."""
