@@ -11,12 +11,12 @@ Security guarantees:
 """
 
 import json
-import os
-import stat
 from pathlib import Path
 from typing import Any
 
 import structlog
+
+from texas_grocery_mcp.utils.secure_file import ensure_secure_permissions
 
 logger = structlog.get_logger()
 
@@ -112,8 +112,8 @@ class CredentialStore:
         key = Fernet.generate_key()
         key_path.write_bytes(key)
 
-        # Set restrictive permissions (owner read/write only)
-        os.chmod(key_path, stat.S_IRUSR | stat.S_IWUSR)
+        # Set restrictive permissions (owner read/write only on POSIX)
+        ensure_secure_permissions(key_path)
 
         logger.debug("Created new encryption key", path=str(key_path))
         return key
@@ -136,8 +136,8 @@ class CredentialStore:
             creds_path = self.auth_dir / CREDENTIALS_FILENAME
             creds_path.write_bytes(encrypted)
 
-            # Set restrictive permissions
-            os.chmod(creds_path, stat.S_IRUSR | stat.S_IWUSR)
+            # Set restrictive permissions (owner read/write only on POSIX)
+            ensure_secure_permissions(creds_path)
 
             logger.info(
                 "Credentials saved to encrypted file",

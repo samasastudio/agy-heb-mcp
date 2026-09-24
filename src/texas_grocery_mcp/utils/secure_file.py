@@ -3,6 +3,7 @@
 import json
 import os
 import stat
+import tempfile
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,15 @@ SECURE_FILE_MODE = stat.S_IRUSR | stat.S_IWUSR
 
 # Directory permissions: owner read/write/execute only (0o700)
 SECURE_DIR_MODE = stat.S_IRWXU
+
+
+def get_temp_dir() -> Path:
+    """Get the platform-appropriate temporary directory.
+
+    Returns:
+        Path to the system temporary directory.
+    """
+    return Path(tempfile.gettempdir())
 
 
 def write_secure_json(path: Path, data: Any, indent: int = 2) -> None:
